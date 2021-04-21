@@ -1,36 +1,41 @@
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
+using System.Diagnostics;
+using System.Threading;
 using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
+using Microsoft.Owin;
+using OwinKatana.Middlewares;
 
+[assembly: OwinStartup(typeof(OwinKatana.Startup))]
 namespace OwinKatana
 {
+    /// <summary>
+    /// https://docs.microsoft.com/en-us/aspnet/aspnet/overview/owin-and-katana/owin-startup-class-detection
+    /// </summary>
     public class Startup
     {
-        // This method gets called by the runtime. Use this method to add services to the container.
-        // For more information on how to configure your application, visit https://go.microsoft.com/fwlink/?LinkID=398940
-        public void ConfigureServices(IServiceCollection services)
+        public static void Configure(IApplicationBuilder app)
         {
-        }
-
-        // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
-        public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
-        {
-            if (env.IsDevelopment())
+            app.UseDebugMiddleware(new DebugMiddlewareOption
             {
-                app.UseDeveloperExceptionPage();
-            }
-
-            app.UseRouting();
-
-            app.UseEndpoints(endpoints =>
+                OnIncomingRequest = ctx =>
+                {
+                    var stopWatch = new Stopwatch();
+                    stopWatch.Start();
+                    Thread.Sleep(1000);
+                    ctx.Items.Add("DebugStopWatch", stopWatch);
+                },
+                OnOutGoingRequest = ctx =>
+                {
+                    var stopwatch = (Stopwatch)ctx.Items["DebugStopWatch"];
+                    stopwatch.Stop();
+                    Console.WriteLine("Total time Elapse:" + stopwatch.ElapsedMilliseconds);
+                }
+            });
+            
+            app.Use(async (ctx, next) =>
             {
-                endpoints.MapGet("/", async context => { await context.Response.WriteAsync("Hello World!"); });
+                await ctx.Response.WriteAsync("Hello World.");
             });
         }
     }
